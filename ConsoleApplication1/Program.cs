@@ -9,7 +9,7 @@ namespace ConsoleApplication1
     class Container
     {
         private static Dictionary<string, Container> _containers = new Dictionary<string, Container>();
-        private float productWeight;
+        private float productWeight = 0;
         private float height;
         private float weight;
         private float depth;
@@ -65,7 +65,7 @@ namespace ConsoleApplication1
 
         public override string ToString()
         {
-            return serialNumber + " " + productWeight + " " + weight + " " + height + " " + depth;
+            return "Kontener: " + serialNumber + ". Masa ładunku: " + productWeight + " kg. Сharakterystyka kontenera: Waga - " + weight + " kg, Wysokość - " + height + " cm, Głębokość - " + depth + " cm";
         }
     }
     public interface IHazardNotifier
@@ -77,24 +77,24 @@ namespace ConsoleApplication1
     {
         private const string type = "L";
 
-        private const float weight = 5000;
+        private const float weight = 3000;
 
         private const float height = 500;
 
-        private const float depth = 700;
+        private const float depth = 900;
 
-        private const float maxPayload = 3000;
+        private const float maxPayload = 4000;
 
         private bool dangerous;
         
         private string product;
-        public LiquidСontainer(bool dangerous) : base(weight, height, depth, type, maxPayload)
+        public LiquidСontainer() : base(weight, height, depth, type, maxPayload)
         {
             
-            this.dangerous = dangerous;
+           
         }
 
-        protected void StartLoad(float productWeight, string product)
+        protected void StartLoad(float productWeight, string product, bool dangerous)
         {
             Load(productWeight);
             if (dangerous && GetProductWeight() > maxPayload*0.5f)
@@ -106,6 +106,7 @@ namespace ConsoleApplication1
                 Alert();
             }
 
+            this.dangerous = dangerous;
             this.product = product;
 
         }
@@ -133,7 +134,7 @@ namespace ConsoleApplication1
 
         private const float depth = 700;
 
-        private const float maxPayload = 3000;
+        private const float maxPayload = 1000;
 
         private float atmosphere;
         
@@ -169,7 +170,7 @@ namespace ConsoleApplication1
 
         public override string ToString()
         {
-            return base.ToString() + " " + atmosphere;
+            return base.ToString() + ", Ciśnienia - " + atmosphere + " at";
         }
     }
     
@@ -177,13 +178,13 @@ namespace ConsoleApplication1
     {
         private const string type = "C";
 
-        private const float weight = 5000;
+        private const float weight = 7000;
 
-        private const float height = 500;
+        private const float height = 400;
 
-        private const float depth = 700;
+        private const float depth = 800;
 
-        private const float maxPayload = 3000;
+        private const float maxPayload = 2000;
 
         private static Dictionary<string, float> productsTemp = new Dictionary<string, float>();
 
@@ -238,7 +239,7 @@ namespace ConsoleApplication1
         
         public override string ToString()
         {
-            return base.ToString() + " " + temp;
+            return base.ToString() + ", Temperatura - " + temp + " C";
         }
     }
     
@@ -249,11 +250,29 @@ namespace ConsoleApplication1
 
     class Ship
     {
-        private  Dictionary<string, Container> _containersShip = new Dictionary<string, Container>();
+        private Dictionary<string, Container> _containersShip = new Dictionary<string, Container>();
+
+        private float speed;
+
+        private int size;
+
+        public Ship(float speed, int size)
+        {
+            this.size = size;
+            this.speed = speed;
+        }
 
         public void AddContainer(Container c)
         {
-            _containersShip.Add(c.GetSerialNumber(),c);
+            if (_containersShip.Count != size + 1)
+            {
+                _containersShip.Add(c.GetSerialNumber(), c);
+            }
+            else
+            {
+                Console.WriteLine("Statek jest pelny");
+            }
+            
         }
 
         public void ListContainers()
@@ -261,6 +280,16 @@ namespace ConsoleApplication1
             foreach (KeyValuePair<string, Container> pair in _containersShip)
             {
                 Console.WriteLine(_containersShip[pair.Key]);
+            }
+        }
+
+        public static void ContainerFromTo(Ship from, Ship to, string sn)
+        {
+            if (from._containersShip.ContainsKey(sn))
+            {
+                to.AddContainer(from._containersShip[sn]);
+                from._containersShip.Remove(sn);
+               
             }
         }
 
@@ -274,7 +303,26 @@ namespace ConsoleApplication1
             }
 
         }
-        
+
+        public Dictionary<string, Container> UnLoadShip()
+        {
+            Dictionary<string, Container> buffer = _containersShip;
+            _containersShip = new Dictionary<string, Container>();
+            return buffer;
+        }
+
+        public Container UnLoadContainer(string sn)
+        {
+            Container buffer = _containersShip[sn];
+            _containersShip.Remove(sn);
+            return buffer;
+        }
+
+        public override string ToString()
+        {
+            ListContainers();
+            return "|STATEK INFO| Prędkość statku: " + speed + ". Maksymalna liczba kontenerów: " + size + ". Liczba kontenerów:" + _containersShip.Count;
+        }
     }
     
     internal class Program
