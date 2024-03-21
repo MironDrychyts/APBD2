@@ -5,20 +5,52 @@ using System.Diagnostics;
 
 namespace ConsoleApplication1
 {
-    
+    class Product
+    {
+        private string name;
+        private float productWeight;
+        private bool dangerous;
+
+        public Product(string name, float productWeight, bool dangerous)
+        {
+            this.name = name;
+            this.productWeight = productWeight;
+            this.dangerous = dangerous;
+        }
+
+        public string GetName()
+        {
+            return name;
+        }
+
+        public float GetProductWeight()
+        {
+            return productWeight;
+        }
+
+        public void SetProductWeight(float weight)
+        {
+            productWeight = weight;
+        }
+        
+        public bool IsDangerous()
+        {
+            return dangerous;
+        }
+    }
     class Container
     {
         private static Dictionary<string, Container> _containers = new Dictionary<string, Container>();
-        private float productWeight = 0;
         private float height;
         private float weight;
         private float depth;
         private string serialNumber;
         private float maxPayload;
+        private Product product;
 
         public Container( float weight, float height, float depth, string type, float maxPayload)
         {
-         
+            product = null;
             this.weight = weight;
             this.height = height;
             this.depth = depth;
@@ -34,28 +66,56 @@ namespace ConsoleApplication1
         }
 
         
-        protected void Load(float productWeight)
+        public virtual void Load(Product product)
         {
-            if (productWeight > maxPayload)
+            if (this.product != null)
+            {
+                Console.WriteLine("Kontener już zawiera: " + this.product.GetName());
+                return;
+            }
+            if (product.GetProductWeight() > maxPayload)
             {
                 throw new OverfillException("Masa ładunku jest większa niż pojemność danego kontenera");
             }
 
-            this.productWeight = productWeight;
+            this.product = product;
+            
 
 
         }
 
-        protected float UnLoad()
+        public virtual Product UnLoad()
         {
-            float buffer = productWeight;
-            productWeight = 0;
+            Product buffer = product;
+            product = null;
             return buffer;
         }
         
+        
         protected float GetProductWeight()
         {
-            return productWeight;
+            if (product != null)
+            {
+                return product.GetProductWeight();
+            }
+            
+            return 0;
+            
+        }
+
+        public static Dictionary<string, Container> GetContainers()
+        {
+            return _containers;
+        }
+        protected string GetProductName()
+        {
+            if (product != null)
+            {
+                return product.GetName();
+            }
+            
+            return "Empty";
+            
         }
 
         public string GetSerialNumber()
@@ -63,9 +123,11 @@ namespace ConsoleApplication1
             return serialNumber;
         }
 
+       
+
         public override string ToString()
         {
-            return "Kontener: " + serialNumber + ". Masa ładunku: " + productWeight + " kg. Сharakterystyka kontenera: Waga - " + weight + " kg, Wysokość - " + height + " cm, Głębokość - " + depth + " cm";
+            return "Kontener: " + serialNumber + ". Ładunek: " + GetProductName() + ". Masa ładunku: " + GetProductWeight() + " kg. Сharakterystyka kontenera: Waga - " + weight + " kg, Wysokość - " + height + " cm, Głębokość - " + depth + " cm";
         }
     }
     public interface IHazardNotifier
@@ -83,46 +145,43 @@ namespace ConsoleApplication1
 
         private const float depth = 900;
 
-        private const float maxPayload = 4000;
-
-        private bool dangerous;
+        private const float maxPayload = 2000;
         
-        private string product;
+       
         public LiquidСontainer() : base(weight, height, depth, type, maxPayload)
         {
             
            
         }
 
-        protected void StartLoad(float productWeight, string product, bool dangerous)
+        public override void Load(Product product)
         {
-            Load(productWeight);
-            if (dangerous && GetProductWeight() > maxPayload*0.5f)
+            base.Load(product);
+            if (product.IsDangerous() && product.GetProductWeight() > maxPayload*0.5f)
             {
                 Alert();
             }
-            else if(GetProductWeight() > maxPayload*0.9f)
+            else if(product.GetProductWeight() > maxPayload*0.9f)
             {
                 Alert();
             }
 
-            this.dangerous = dangerous;
-            this.product = product;
-
-        }
-
-        protected float StartUnLoad()
-        {
-            product = null;
-            return UnLoad();
             
+
         }
+
+
+        
+
+      
         
         public void Alert()
         {
             Console.WriteLine("Kontener: " + GetSerialNumber() + " jest w niebezpiecznej sytuacji!");
         }
     }
+    
+   
     
     class GasСontainer : Container, IHazardNotifier
     {
@@ -138,7 +197,7 @@ namespace ConsoleApplication1
 
         private float atmosphere;
         
-        private string product;
+    
         
         public GasСontainer(float atmosphere) : base(weight, height, depth, type, maxPayload)
         {
@@ -146,23 +205,17 @@ namespace ConsoleApplication1
             this.atmosphere = atmosphere;
 
         }
-
-        protected void StartLoad(float productWeight, string product)
-        {
-           
-            Load(productWeight);
-           
-           
-            this.product = product;
-            
-        }
         
-        protected float StartUnLoad()
+
+
+        public override Product UnLoad()
         {
-            product = null;
-            return UnLoad()*0.95f;
-            
+            Product buffer = base.UnLoad();
+            float newWeight = (buffer.GetProductWeight()*0.95f);
+            buffer.SetProductWeight(newWeight);
+            return buffer;
         }
+
         public void Alert()
         {
             Console.WriteLine("Kontener: " + GetSerialNumber() + "jest w niebezpiecznej sytuacji!");
@@ -186,54 +239,41 @@ namespace ConsoleApplication1
 
         private const float maxPayload = 2000;
 
-        private static Dictionary<string, float> productsTemp = new Dictionary<string, float>();
-
-        private string product;
-
+        private ListColdContainer productsTemp;
+        
         private float temp;
         
-        public ColdСontainer() : base( weight, height, depth, type, maxPayload)
+        public ColdСontainer(float temp) : base( weight, height, depth, type, maxPayload)
         {
-         
-            InitMap();
-           
-            
-            
+            this.temp = temp;
+            productsTemp = new ListColdContainer();
+
+
         }
 
-        protected void StartLoad(float productWeight, string product, float temp)
+       
+
+        public override void Load(Product product)
         {
-           
-            Load(productWeight);
-           
-            if (productsTemp[product] < temp)
+            if (!productsTemp.GetList().ContainsKey(product.GetName()))
+            {
+                Console.WriteLine("Ten produkt nie może być przechowywany w tym kontenerze");
+                return;
+            }
+            
+            
+            if (productsTemp.GetList()[product.GetName()] < temp)
             {
                 throw new OverfillException("Temperatura kontenera nie jest wystarczająco niska!");
             }
-            this.product = product;
-            this.temp = temp;
-
-        }
-        private void InitMap()
-        {
-            productsTemp.Add("Bananas",13.3f);
-            productsTemp.Add("Chocolate",18f);
-            productsTemp.Add("Fish",2f);
-            productsTemp.Add("Meat",-15f);
-            productsTemp.Add("Ice cream",-18f);
-            productsTemp.Add("Frozen pizza",-30f);
-            productsTemp.Add("Cheese",7.2f);
-            productsTemp.Add("Sausages",5f);
-            productsTemp.Add("Butter",20.5f);
-            productsTemp.Add("Eggs",19f);
-        }
-
-        protected float StartUnLoad()
-        {
-            product = null;
-            return UnLoad();
+            base.Load(product);
             
         }
+
+     
+
+       
+        
         
        
         
@@ -264,15 +304,27 @@ namespace ConsoleApplication1
 
         public void AddContainer(Container c)
         {
-            if (_containersShip.Count != size + 1)
+
+            if (!_containersShip.ContainsKey(c.GetSerialNumber()))
             {
-                _containersShip.Add(c.GetSerialNumber(), c);
+                if (_containersShip.Count != size + 1)
+                {
+                    _containersShip.Add(c.GetSerialNumber(), c);
+                }
+                else
+                {
+                    Console.WriteLine("Statek jest pelny");
+                }
             }
-            else
+
+        }
+
+        public void AddList(List<Container> containers)
+        {
+            foreach (Container container in containers)
             {
-                Console.WriteLine("Statek jest pelny");
+                AddContainer(container);
             }
-            
         }
 
         public void ListContainers()
@@ -293,13 +345,17 @@ namespace ConsoleApplication1
             }
         }
 
-        public void Exchange(Ship s, Container c, string sn)
+        public void Exchange(Ship s, string snFrom, string snTo)
         {
-            if (_containersShip.ContainsKey(sn))
+            if (s._containersShip.ContainsKey(snFrom))
             {
-                s.AddContainer(_containersShip[sn]);
-                _containersShip.Remove(sn);
-                this.AddContainer(c);
+                if (_containersShip.ContainsKey(snTo))
+                {
+                    s.AddContainer(_containersShip[snTo]);
+                    _containersShip.Remove(snTo);
+                    AddContainer(s._containersShip[snFrom]);
+                    s._containersShip.Remove(snFrom);
+                }
             }
 
         }
@@ -321,15 +377,101 @@ namespace ConsoleApplication1
         public override string ToString()
         {
             ListContainers();
-            return "|STATEK INFO| Prędkość statku: " + speed + ". Maksymalna liczba kontenerów: " + size + ". Liczba kontenerów:" + _containersShip.Count;
+            return "|STATEK INFO| Prędkość statku: " + speed + " węzłów. Maksymalna liczba kontenerów: " + size + ". Liczba kontenerów: " + _containersShip.Count;
         }
+    }
+
+    class ListColdContainer
+    {
+        private static Dictionary<string, float> productsTemp = new Dictionary<string, float>();
+
+        public ListColdContainer()
+        {
+            InitMap();
+        }
+        private void InitMap()
+        {
+            productsTemp.Add("Bananas",13.3f);
+            productsTemp.Add("Chocolate",18f);
+            productsTemp.Add("Fish",2f);
+            productsTemp.Add("Meat",-15f);
+            productsTemp.Add("Ice cream",-18f);
+            productsTemp.Add("Frozen pizza",-30f);
+            productsTemp.Add("Cheese",7.2f);
+            productsTemp.Add("Sausages",5f);
+            productsTemp.Add("Butter",20.5f);
+            productsTemp.Add("Eggs",19f);
+        }
+
+        public Dictionary<string, float> GetList()
+        {
+            return productsTemp;
+        }
+        
     }
     
     internal class Program
     {
         public static void Main(string[] args)
         {
+       
+            Container coldCont1 = new ColdСontainer(10);
+            Product p1 = new Product("Bananas", 1500, false);
+            coldCont1.Load(p1);
+            Console.WriteLine(coldCont1);
+            Container liquidCont1 = new LiquidСontainer();
+            liquidCont1.Load(new Product("paliwo",1110,true));
+            liquidCont1.Load(new Product("mleko",500,false));
+            Container gasCont1 = new GasСontainer(5);
+            Product p2 = new Product("gas", 400, true);
+            gasCont1.Load(p2);
+            p2 = gasCont1.UnLoad();
+            Console.WriteLine(p2.GetProductWeight());
+
+            Ship ship1 = new Ship(5, 15);
+
+            List<Container> containers = new List<Container>();
+            containers.Add(coldCont1);
+            containers.Add(liquidCont1);
+            ship1.AddList(containers);
             
+            Console.WriteLine(ship1);
+            
+            gasCont1.Load(p2);
+            Console.WriteLine(gasCont1);
+
+            Ship ship2 = new Ship(7, 17);
+            
+            ship2.AddContainer(gasCont1);
+            
+            Console.WriteLine("S1____________________________");
+            ship1.ListContainers();
+            Console.WriteLine("S2____________________________");
+            ship2.ListContainers();
+             
+            ship1.Exchange(ship2,"KON-G-2","KON-L-1");
+            
+            Console.WriteLine("S1____________________________");
+            ship1.ListContainers();
+            Console.WriteLine("S2____________________________");
+            ship2.ListContainers();
+
+            Dictionary<string, Container> containersShip = ship1.UnLoadShip();
+            Console.WriteLine("____________________________");
+            foreach (KeyValuePair<string, Container> pair in containersShip)
+            {
+                Console.WriteLine(containersShip[pair.Key]);
+            }
+            Console.WriteLine("____________________________");
+            ship1.ListContainers();
+            
+            
+
+
+
+
+
+
         }
     }
 }
